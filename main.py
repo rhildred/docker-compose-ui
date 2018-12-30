@@ -7,7 +7,7 @@ import logging
 import os
 import traceback
 from shutil import rmtree
-from compose.service import ImageType, BuildAction
+#from compose.service import ImageType, BuildAction
 import docker
 import requests
 from flask import Flask, jsonify, request, abort
@@ -207,7 +207,8 @@ def up_():
     req = loads(request.data)
     name = req["id"]
     service_names = req.get('service_names', None)
-    do_build = BuildAction.force if req.get('do_build', False) else BuildAction.none
+    #do_build = BuildAction.force if req.get('do_build', False) else BuildAction.none
+    do_build = 1 if req.get('do_build', False) else 0
 
     container_list = get_project_with_name(name).up(
         service_names=service_names,
@@ -348,7 +349,8 @@ def down():
     docker-compose down
     """
     name = loads(request.data)["id"]
-    get_project_with_name(name).down(ImageType.none, None)
+    #get_project_with_name(name).down(ImageType.none, None)
+    get_project_with_name(name).down(0, None)
     return jsonify(command='down')
 
 @app.route(API_V1 + "restart", methods=['POST'])
@@ -489,4 +491,4 @@ def handle_generic_error(err):
 
 # run app
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=5001, debug=False, threaded=True)

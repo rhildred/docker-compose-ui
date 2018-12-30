@@ -1,18 +1,6 @@
 version: "2"
 
 services:
-    docker_compose_ui:
-        restart: always
-        build: .
-        container_name: docker_compose_ui
-        hostname: docker_compose_ui
-        working_dir: /opt/docker-compose-projects/
-        environment:
-        - 'WEB_CONSOLE_PATTERN=/web-console/?cid={containerName}&cmd={command}'
-        #working_dir: /home/user/docker-compose-ui/demo-projects
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-            #- /home/user/docker-compose-ui/demo-projects:/home/user/docker-compose-ui/demo-projects
     web_console:
         image: bitbull/docker-exec-web-console
         environment:
@@ -25,8 +13,10 @@ services:
         image: nginx:alpine
         read_only: true
         restart: always
+        extra_hosts: 
+            - "dockerhost:192.168.0.14"
         ports:
-        - 8080:80
+        - 8083:80
         volumes:
         - ./default.conf:/etc/nginx/conf.d/default.conf:ro
         - /var/cache/nginx/
