@@ -406,7 +406,11 @@ def get_web_console_pattern():
     """
     forward WEB_CONSOLE_PATTERN env var from server to spa
     """
-    return jsonify(web_console_pattern=os.getenv('WEB_CONSOLE_PATTERN'))
+    sWebConsolePattern = os.getenv('WEB_CONSOLE_PATTERN')
+    if(sWebConsolePattern == None):
+        return jsonify(web_console_pattern="/web-console/?cid={containerName}&cmd={command}")
+    else:
+        return jsonify(web_console_pattern=sWebConsolePattern)
 
 @app.route(API_V1 + "health", methods=['GET'])
 def health():
