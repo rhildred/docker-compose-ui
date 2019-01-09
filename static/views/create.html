@@ -37,15 +37,19 @@
   <div class="panel panel-default">
       <div class="panel-heading">project metadata</div>
       <div class="panel-body project-wizard">
-        <form class="form-horizontal" ng-submit="createProject(name, yml, env)">
+        <form class="form-horizontal" ng-submit="createProject(name, repoName, webhookurl(), env)">
           <div ng-hide="isEdit" class="form-group">
             <label for="projectName">Name</label>
             <input type="text" ng-model="name" class="form-control" id="projectName" placeholder="Project Name" required>
           </div>
+          <div ng-hide="isEdit" class="form-group">
+            <label for="projectRepo">Repository (https://)</label>
+            <input type="text" ng-model="repoName" class="form-control" id="projectRepo" placeholder="Repository (https://)" required>
+          </div>
           <div class="form-group">
-            <label for="yml">YML Content</label>
+            <label>Web Hook</label>
 
-            <textarea class="form-control" ng-model="yml" id="yml" rows="20" required></textarea>
+            <div class="form-control" ng-bind="webhookurl()">https://rhlab.app</div>
 
           </div>
           <div class="form-group">

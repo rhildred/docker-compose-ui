@@ -22,6 +22,13 @@ def git_pull():
     else:
         logging.info('will not execute git pull: not a git repository')
 
+def git_clone(sRepo, sPath):
+    logging.info('git clone ' +  sRepo)
+    Repo.clone_from(sRepo, sPath)
+    return sPath
+
+
+
 if git_repo:
     logging.info('git repo: ' + git_repo)
     if os.path.isdir(os.path.join(GIT_YML_PATH, '.git')):

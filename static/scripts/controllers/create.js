@@ -46,12 +46,13 @@ angular.module('composeUiApp')
           }
       });
 
-      $scope.createProject = function (name, yml, env) {
+      $scope.createProject = function (name, repoName, webhookurl, env) {
 
       //TODO: check if name is alphanumeric
           Projects[isEdit ? 'updateProject' : 'createProject']({
               name: name,
-              yml: yml,
+              repoName: repoName,
+              webhookurl, webhookurl,
               env: env
           }, function (data) {
               alertify.success((isEdit ? 'updated project' : 'created project: ') + name + ', path: ' + data.path);
@@ -110,6 +111,10 @@ angular.module('composeUiApp')
           $scope.name = name;
           $scope.items = [];
       };
+
+      $scope.webhookurl = function() {
+          return window.location.href.replace("#/create", "webhooks/" + $scope.name);
+      }
 
 
   });

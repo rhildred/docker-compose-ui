@@ -10,7 +10,7 @@ services:
         volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     nginx:
-        image: nginx:alpine
+        image: nginx:latest
         read_only: true
         restart: always
         extra_hosts: 
@@ -21,4 +21,4 @@ services:
         - ./default.conf:/etc/nginx/conf.d/default.conf:ro
         - /var/cache/nginx/
         - /var/run/
-        - /logs/
+        - ./logs/:/logs/

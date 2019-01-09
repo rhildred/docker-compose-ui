@@ -11,7 +11,7 @@ from compose.service import ImageType, BuildAction
 import docker
 import requests
 from flask import Flask, jsonify, request, abort
-from scripts.git_repo import git_pull, git_repo, GIT_YML_PATH
+from scripts.git_repo import git_pull, git_repo, GIT_YML_PATH, git_clone
 from scripts.bridge import ps_, get_project, get_container_from_id, get_yml_path, containers, project_config, info
 from scripts.find_files import find_yml_files, get_readme_file, get_logo_file
 from scripts.requires_auth import requires_auth, authentication_enabled, \
@@ -26,7 +26,7 @@ COMPOSE_REGISTRY = os.getenv('DOCKER_COMPOSE_REGISTRY')
 logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, static_url_path='')
 
-def load_projects():
+def load_projects(sPath):
     """
     load project definitions (docker-compose.yml files)
     """
@@ -36,11 +36,11 @@ def load_projects():
         git_pull()
         projects = find_yml_files(GIT_YML_PATH)
     else:
-        projects = find_yml_files(YML_PATH)
+        projects = find_yml_files(sPath)
 
     logging.info(projects)
 
-load_projects()
+load_projects(YML_PATH)
 
 
 def get_project_with_name(name):
@@ -56,7 +56,7 @@ def list_projects():
     """
     List docker compose projects
     """
-    load_projects()
+    load_projects(YML_PATH)
     active = [container['Labels']['com.docker.compose.project'] \
         if 'com.docker.compose.project' in container['Labels'] \
         else [] for container in containers()]
@@ -245,14 +245,16 @@ def create_project():
     """
     data = loads(request.data)
 
-    file_path = manage(YML_PATH + '/' +  data["name"], data["yml"], False)
+    file_path = git_clone(data["repoName"], YML_PATH + '/' +  data["name"])
+
+    #file_path = manage(YML_PATH + '/' +  data["name"], data["yml"], False)
 
     if 'env' in data and data["env"]:
         env_file = open(YML_PATH + '/' + data["name"] + "/.env", "w")
         env_file.write(data["env"])
         env_file.close()
 
-    load_projects()
+    load_projects(YML_PATH)
 
     return jsonify(path=file_path)
 
@@ -283,7 +285,7 @@ def remove_project(name):
 
     directory = YML_PATH + '/' + name
     rmtree(directory)
-    load_projects()
+    load_projects(YML_PATH)
     return jsonify(path=directory)
 
 
