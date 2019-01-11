@@ -13,8 +13,6 @@ services:
         image: nginx:latest
         read_only: true
         restart: always
-        extra_hosts: 
-            - "dockerhost:192.168.0.14"
         ports:
         - 80:80
         volumes:
