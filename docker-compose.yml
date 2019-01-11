@@ -19,7 +19,7 @@ services:
         - 80:80
         volumes:
         - ./nginx.conf:/etc/nginx/nginx.conf:ro
-        - ./proxyport.js:/etc/nginx/proxyport.js
+        - ./static/scripts/proxyport.js:/etc/nginx/proxyport.js
         - /var/cache/nginx/
         - /var/run/
         - ./logs/:/logs/
