@@ -3,6 +3,7 @@ import os
 import signal
 import fileinput
 import socket
+from scripts.bridge import get_project
 
 #first write ip address of this server for nginx config
 
@@ -25,7 +26,8 @@ for line in fileinput.input(['nginx.tmpl.conf']):
 oFile.close()
 
 #we will want to run docker-compose up equivalent here
-
+sPath = os.path.dirname(os.path.abspath(__file__))
+get_project(sPath).up()
 #now set up as a web server
 
 from main import app
@@ -54,5 +56,6 @@ try:
     for _ in range(NUM_WORKERS):
         os.wait()
 except KeyboardInterrupt:
+    get_project(sPath).down(remove_image_type=False, include_volumes=None)
     for pid in worker_pids:
         os.kill(pid, signal.SIGINT)
