@@ -45,6 +45,12 @@ Then open your browser to `http://localhost:5000`
 If you already have docker-compose installed, you can run `docker-compose up` and then open your browser to `http://localhost:8080`.
 
 
+or if you want a daemon run:
+
+pm2 start app_server.py --interpreter=python3
+
+
+
 ### Add your own docker-compose projects
 
 to use your own docker-compose projects run this command from the directory containing your docker-compose.yml files:
