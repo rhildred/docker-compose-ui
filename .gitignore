@@ -70,3 +70,5 @@ target/
 # Project Specific
 nginx.conf
 users
+cloudflare.json
+github.json
