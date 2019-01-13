@@ -49,6 +49,10 @@ or if you want a daemon run:
 
 pm2 start app_server.py --interpreter=python3
 
+or if you want to bootstrap on a clean ec2 instance
+
+bash <(curl https://rhildred.github.io/docker-compose-ui/toaster.sh)
+
 
 
 ### Add your own docker-compose projects
