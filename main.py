@@ -590,7 +590,7 @@ def index():
     index.html
     """
     if 'username' in session:
-        return render_template('index.html')
+        return render_template('index.html', username=session['username'])
     else:
         with open('../creds/github.json') as json_data_file:
             oCreds = loads(json_data_file.read())

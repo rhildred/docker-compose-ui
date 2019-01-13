@@ -9,7 +9,7 @@
  */
 angular.module('composeUiApp')
     .controller('CreateCtrl', function ($scope, $routeParams, $resource, $location) {
-
+        $scope.username = sUserName;
         var isEdit = $location.path().indexOf('/edit/') === 0;
 
         if (isEdit) {
@@ -51,7 +51,7 @@ angular.module('composeUiApp')
             //TODO: check if name is alphanumeric
             //add our special string to the env
 
-            var sHostName = window.location.hostname.replace("apps", name);
+            var sHostName = window.location.hostname.replace("apps", name + "-" + sUserName);
             var sPort = crc16(sHostName);
             var sEnv = "RHPORT=" + sPort + "\n";
             if(env){
