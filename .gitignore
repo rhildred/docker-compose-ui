@@ -66,5 +66,7 @@ target/
 
 # Intellij
 .idea
+
+# Project Specific
 nginx.conf
 users

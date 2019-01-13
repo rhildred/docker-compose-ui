@@ -592,7 +592,9 @@ def index():
     if 'username' in session:
         return render_template('index.html')
     else:
-        return render_template('login.html')
+        with open('../creds/github.json') as json_data_file:
+            oCreds = loads(json_data_file.read())
+        return render_template('login.html', client_id=oCreds["client_id"] )
 
 # login
 @app.route("/oauth2callback")
