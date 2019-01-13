@@ -1,6 +1,6 @@
 #!/bin/bash -i
 sudo yum update
-sudo yum install python3 python3-devel libev-devel docker git gcc gcc-c++ make 
+sudo yum install python3 python3-devel libev-devel docker-ce git gcc gcc-c++ make 
 pip3 install --user docker-compose
 git clone https://github.com/rhildred/docker-compose-ui.git
 cd docker-compose-ui
