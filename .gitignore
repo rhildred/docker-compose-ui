@@ -67,5 +67,4 @@ target/
 # Intellij
 .idea
 nginx.conf
-test
-test2
+users

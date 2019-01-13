@@ -6,18 +6,6 @@
 
   <h4>docker daemon socket: {{dockerHost || unixSocket}}</h4>
 
-  <form class="form-inline" ng-submit="select($event, newHost)">
-    <div class="form-group">
-      <label for="new-host">set remote Docker Host:</label>
-    </div>
-    <div class="input-group">
-      <input name="new-host" type="text" ng-model="newHost" class="form-control">
-      <span class="input-group-btn">
-        <input type="submit" class="btn btn-default" value="save"></input>
-      </span>
-    </div>
-    <button class="btn btn-primary" ng-click="select($event)" ng-show="dockerHost">use {{unixSocket}}</button>
-  </form>
 </div>
 
 <br><br>

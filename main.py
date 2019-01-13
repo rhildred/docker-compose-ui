@@ -10,27 +10,40 @@ from shutil import rmtree
 from compose.service import ImageType, BuildAction
 import docker
 import requests
-from flask import Flask, jsonify, request, abort
+from flask import Flask, jsonify, request, abort, session, redirect, url_for, render_template
 from scripts.git_repo import git_pull, git_repo, GIT_YML_PATH, git_clone
 from scripts.bridge import ps_, get_project, get_container_from_id, get_yml_path, containers, project_config, info
 from scripts.find_files import find_yml_files, get_readme_file, get_logo_file
 from scripts.requires_auth import requires_auth, authentication_enabled, \
   disable_authentication, set_authentication
 from scripts.manage_project import manage
+import uuid
+
 
 # Flask Application
 API_V1 = '/api/v1/'
-YML_PATH = os.getenv('DOCKER_COMPOSE_UI_YML_PATH') or '.'
 COMPOSE_REGISTRY = os.getenv('DOCKER_COMPOSE_REGISTRY')
 
 logging.basicConfig(level=logging.INFO)
 app = Flask(__name__, static_url_path='')
+jinja_options = app.jinja_options.copy()
 
+jinja_options.update(dict(
+    block_start_string='<%',
+    block_end_string='%>',
+    variable_start_string='%%',
+    variable_end_string='%%',
+    comment_start_string='<#',
+    comment_end_string='#>'
+))
+app.jinja_options = jinja_options
+
+app.secret_key = str(uuid.uuid4())
 def load_projects(sPath):
     """
     load project definitions (docker-compose.yml files)
     """
-    global projects
+    projects = {}
 
     if git_repo:
         git_pull()
@@ -39,14 +52,16 @@ def load_projects(sPath):
         projects = find_yml_files(sPath)
 
     logging.info(projects)
+    return projects
 
-load_projects(YML_PATH)
 
 
-def get_project_with_name(name):
+
+def get_project_with_name(path, name):
     """
     get docker compose project given a project name
     """
+    projects = load_projects(path)
     path = projects[name]
     return get_project(path)
 
@@ -56,11 +71,16 @@ def list_projects():
     """
     List docker compose projects
     """
-    load_projects(YML_PATH)
-    active = [container['Labels']['com.docker.compose.project'] \
-        if 'com.docker.compose.project' in container['Labels'] \
-        else [] for container in containers()]
-    return jsonify(projects=projects, active=active)
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+
+        projects = load_projects(YML_PATH)
+        active = [container['Labels']['com.docker.compose.project'] \
+            if 'com.docker.compose.project' in container['Labels'] \
+            else [] for container in containers()]
+        return jsonify(projects=projects, active=active)
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "remove/<name>", methods=['DELETE'])
 @requires_auth
@@ -68,17 +88,27 @@ def rm_(name):
     """
     remove previous cached containers. docker-compose rm -f
     """
-    project = get_project_with_name(name)
-    project.remove_stopped()
-    return jsonify(command='rm')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+
+        project = get_project_with_name(YML_PATH, name)
+        project.remove_stopped()
+        return jsonify(command='rm')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects/<name>", methods=['GET'])
 def project_containers(name):
     """
     get project details
     """
-    project = get_project_with_name(name)
-    return jsonify(containers=ps_(project))
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+
+        project = get_project_with_name(YML_PATH, name)
+        return jsonify(containers=ps_(project))
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects/<project>/<service_id>", methods=['POST'])
 @requires_auth
@@ -86,38 +116,47 @@ def run_service(project, service_id):
     """
     docker-compose run service
     """
-    json = loads(request.data)
-    service = get_project_with_name(project).get_service(service_id)
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
 
-    command = json["command"] if 'command' in json else service.options.get('command')
+        json = loads(request.data)
+        service = get_project_with_name(YML_PATH, project).get_service(service_id)
 
-    container = service \
-        .create_container(one_off=True, command=command)
-    container.start()
+        command = json["command"] if 'command' in json else service.options.get('command')
 
-    return jsonify(\
-        command='run %s/%s' % (project, service_id), \
-        name=container.name, \
-        id=container.id \
-        )
+        container = service \
+            .create_container(one_off=True, command=command)
+        container.start()
+
+        return jsonify(\
+            command='run %s/%s' % (project, service_id), \
+            name=container.name, \
+            id=container.id \
+            )
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects/yml/<name>", methods=['GET'])
 def project_yml(name):
     """
     get yml content
     """
-    folder_path = projects[name]
-    path = get_yml_path(folder_path)
-    config = project_config(folder_path)
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        projects = load_projects(YML_PATH)
+        folder_path = projects[name]
+        path = get_yml_path(folder_path)
+        config = project_config(folder_path)
 
-    with open(path) as data_file:
-        env = None
-        if os.path.isfile(folder_path + '/.env'):
-            with open(folder_path + '/.env') as env_file:
-                env = env_file.read()
+        with open(path) as data_file:
+            env = None
+            if os.path.isfile(folder_path + '/.env'):
+                with open(folder_path + '/.env') as env_file:
+                    env = env_file.read()
 
-        return jsonify(yml=data_file.read(), env=env, config=config._replace(version=config.version.__str__()))
-
+            return jsonify(yml=data_file.read(), env=env, config=config._replace(version=config.version.__str__()))
+    else:
+        return "unauthorized", 403
 
 
 @app.route(API_V1 + "projects/readme/<name>", methods=['GET'])
@@ -125,19 +164,29 @@ def get_project_readme(name):
     """
     get README.md or readme.md if available
     """
-    path = projects[name]
-    return jsonify(readme=get_readme_file(path))
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        projects = load_projects(YML_PATH)
+        path = projects[name]
+        return jsonify(readme=get_readme_file(path))
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects/logo/<name>", methods=['GET'])
 def get_project_logo(name):
     """
     get logo.png if available
     """
-    path = projects[name]
-    logo = get_logo_file(path)
-    if logo is None:
-        abort(404)
-    return logo
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        projects = load_projects(YML_PATH)
+        path = projects[name]
+        logo = get_logo_file(path)
+        if logo is None:
+            abort(404)
+        return logo
+    else:
+        abort(403)
 
 
 @app.route(API_V1 + "projects/<name>/<container_id>", methods=['GET'])
@@ -145,24 +194,29 @@ def project_container(name, container_id):
     """
     get container details
     """
-    project = get_project_with_name(name)
-    container = get_container_from_id(project.client, container_id)
-    return jsonify(
-        id=container.id,
-        short_id=container.short_id,
-        human_readable_command=container.human_readable_command,
-        name=container.name,
-        name_without_project=container.name_without_project,
-        number=container.number,
-        ports=container.ports,
-        ip=container.get('NetworkSettings.IPAddress'),
-        labels=container.labels,
-        log_config=container.log_config,
-        image=container.image,
-        environment=container.environment,
-        started_at=container.get('State.StartedAt'),
-        repo_tags=container.image_config['RepoTags']
-        )
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+
+        project = get_project_with_name(YML_PATH, name)
+        container = get_container_from_id(project.client, container_id)
+        return jsonify(
+            id=container.id,
+            short_id=container.short_id,
+            human_readable_command=container.human_readable_command,
+            name=container.name,
+            name_without_project=container.name_without_project,
+            number=container.number,
+            ports=container.ports,
+            ip=container.get('NetworkSettings.IPAddress'),
+            labels=container.labels,
+            log_config=container.log_config,
+            image=container.image,
+            environment=container.environment,
+            started_at=container.get('State.StartedAt'),
+            repo_tags=container.image_config['RepoTags']
+            )
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects/<name>", methods=['DELETE'])
 @requires_auth
@@ -170,8 +224,13 @@ def kill(name):
     """
     docker-compose kill
     """
-    get_project_with_name(name).kill()
-    return jsonify(command='kill')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+
+        get_project_with_name(YML_PATH, name).kill()
+        return jsonify(command='kill')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects", methods=['PUT'])
 @requires_auth
@@ -179,9 +238,13 @@ def pull():
     """
     docker-compose pull
     """
-    name = loads(request.data)["id"]
-    get_project_with_name(name).pull()
-    return jsonify(command='pull')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        name = loads(request.data)["id"]
+        get_project_with_name(YML_PATH, name).pull()
+        return jsonify(command='pull')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "services", methods=['PUT'])
 @requires_auth
@@ -189,14 +252,19 @@ def scale():
     """
     docker-compose scale
     """
-    req = loads(request.data)
-    name = req['project']
-    service_name = req['service']
-    num = req['num']
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
 
-    project = get_project_with_name(name)
-    project.get_service(service_name).scale(desired_num=int(num))
-    return jsonify(command='scale')
+        req = loads(request.data)
+        name = request['project']
+        service_name = req['service']
+        num = req['num']
+
+        project = get_project_with_name(YML_PATH, name)
+        project.get_service(service_name).scale(desired_num=int(num))
+        return jsonify(command='scale')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "projects", methods=['POST'])
 @requires_auth
@@ -204,21 +272,26 @@ def up_():
     """
     docker-compose up
     """
-    req = loads(request.data)
-    name = req["id"]
-    service_names = req.get('service_names', None)
-    do_build = BuildAction.force if req.get('do_build', False) else BuildAction.none
-    
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
 
-    container_list = get_project_with_name(name).up(
-        service_names=service_names,
-        do_build=do_build)
+        req = loads(request.data)
+        name = req["id"]
+        service_names = req.get('service_names', None)
+        do_build = BuildAction.force if req.get('do_build', False) else BuildAction.none
+        
 
-    return jsonify(
-        {
-            'command': 'up',
-            'containers': [container.name for container in container_list]
-        })
+        container_list = get_project_with_name(YML_PATH, name).up(
+            service_names=service_names,
+            do_build=do_build)
+
+        return jsonify(
+            {
+                'command': 'up',
+                'containers': [container.name for container in container_list]
+            })
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "build", methods=['POST'])
 @requires_auth
@@ -226,15 +299,20 @@ def build():
     """
     docker-compose build
     """
-    json = loads(request.data)
-    name = json["id"]
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
 
-    dic = dict(no_cache=json["no_cache"] if "no_cache" in json \
-      else None, pull=json["pull"] if "pull" in json else None)
+        json = loads(request.data)
+        name = json["id"]
 
-    get_project_with_name(name).build(**dic)
+        dic = dict(no_cache=json["no_cache"] if "no_cache" in json \
+        else None, pull=json["pull"] if "pull" in json else None)
 
-    return jsonify(command='build')
+        get_project_with_name(YML_PATH, name).build(**dic)
+
+        return jsonify(command='build')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "create-project", methods=['POST'])
 @app.route(API_V1 + "create", methods=['POST'])
@@ -243,21 +321,23 @@ def create_project():
     """
     create new project
     """
-    data = loads(request.data)
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
 
-    file_path = git_clone(data["repoName"], YML_PATH + '/' +  data["name"])
+        data = loads(request.data)
 
-    #file_path = manage(YML_PATH + '/' +  data["name"], data["yml"], False)
+        file_path = git_clone(data["repoName"], YML_PATH + '/' +  data["name"])
 
-    if 'env' in data and data["env"]:
-        env_file = open(YML_PATH + '/' + data["name"] + "/.env", "w")
-        env_file.write(data["env"])
-        env_file.close()
+        if 'env' in data and data["env"]:
+            env_file = open(YML_PATH + '/' + data["name"] + "/.env", "w")
+            env_file.write(data["env"])
+            env_file.close()
 
-    load_projects(YML_PATH)
+        load_projects(YML_PATH)
 
-    return jsonify(path=file_path)
-
+        return jsonify(path=file_path)
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "update-project", methods=['PUT'])
 @requires_auth
@@ -265,16 +345,19 @@ def update_project():
     """
     update project
     """
-    data = loads(request.data)
-    file_path = manage(YML_PATH + '/' +  data["name"], data["yml"], True)
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        data = loads(request.data)
+        file_path = manage(YML_PATH + '/' +  data["name"], data["yml"], True)
 
-    if 'env' in data and data["env"]:
-        env_file = open(YML_PATH + '/' + data["name"] + "/.env", "w")
-        env_file.write(data["env"])
-        env_file.close()
+        if 'env' in data and data["env"]:
+            env_file = open(YML_PATH + '/' + data["name"] + "/.env", "w")
+            env_file.write(data["env"])
+            env_file.close()
 
-    return jsonify(path=file_path)
-
+        return jsonify(path=file_path)
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "remove-project/<name>", methods=['DELETE'])
 @requires_auth
@@ -282,11 +365,15 @@ def remove_project(name):
     """
     remove project
     """
-
-    directory = YML_PATH + '/' + name
-    rmtree(directory)
-    load_projects(YML_PATH)
-    return jsonify(path=directory)
+    if('username' in session):
+        YML_PATH = "./users/" + sUserName
+        sUserName = session["username"]
+        directory = YML_PATH + '/' + name
+        rmtree(directory)
+        load_projects("./users/" + sUserName)
+        return jsonify(path=directory)
+    else:
+        return "unauthorized", 403
 
 
 @app.route(API_V1 + "search", methods=['POST'])
@@ -320,9 +407,13 @@ def create():
     """
     docker-compose create
     """
-    name = loads(request.data)["id"]
-    get_project_with_name(name).create()
-    return jsonify(command='create')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        name = loads(request.data)["id"]
+        get_project_with_name(YML_PATH, name).create()
+        return jsonify(command='create')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "start", methods=['POST'])
 @requires_auth
@@ -330,9 +421,14 @@ def start():
     """
     docker-compose start
     """
-    name = loads(request.data)["id"]
-    get_project_with_name(name).start()
-    return jsonify(command='start')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+
+        name = loads(request.data)["id"]
+        get_project_with_name(YML_PATH, name).start()
+        return jsonify(command='start')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "stop", methods=['POST'])
 @requires_auth
@@ -340,9 +436,13 @@ def stop():
     """
     docker-compose stop
     """
-    name = loads(request.data)["id"]
-    get_project_with_name(name).stop()
-    return jsonify(command='stop')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        name = loads(request.data)["id"]
+        get_project_with_name(YML_PATH, name).stop()
+        return jsonify(command='stop')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "down", methods=['POST'])
 @requires_auth
@@ -350,9 +450,13 @@ def down():
     """
     docker-compose down
     """
-    name = loads(request.data)["id"]
-    get_project_with_name(name).down(ImageType.none, None)
-    return jsonify(command='down')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        name = loads(request.data)["id"]
+        get_project_with_name(YML_PATH, name).down(ImageType.none, None)
+        return jsonify(command='down')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "restart", methods=['POST'])
 @requires_auth
@@ -360,9 +464,13 @@ def restart():
     """
     docker-compose restart
     """
-    name = loads(request.data)["id"]
-    get_project_with_name(name).restart()
-    return jsonify(command='restart')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        name = loads(request.data)["id"]
+        get_project_with_name(YML_PATH, name).restart()
+        return jsonify(command='restart')
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "logs/<name>", defaults={'limit': "all"}, methods=['GET'])
 @app.route(API_V1 + "logs/<name>/<int:limit>", methods=['GET'])
@@ -370,11 +478,15 @@ def logs(name, limit):
     """
     docker-compose logs
     """
-    lines = {}
-    for k in get_project_with_name(name).containers(stopped=True):
-        lines[k.name] = k.logs(timestamps=True, tail=limit).decode("utf8").split('\n')
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        lines = {}
+        for k in get_project_with_name(YML_PATH, name).containers(stopped=True):
+            lines[k.name] = k.logs(timestamps=True, tail=limit).decode("utf8").split('\n')
 
-    return jsonify(logs=lines)
+        return jsonify(logs=lines)
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "logs/<name>/<container_id>", defaults={'limit': "all"}, methods=['GET'])
 @app.route(API_V1 + "logs/<name>/<container_id>/<int:limit>", methods=['GET'])
@@ -382,19 +494,28 @@ def container_logs(name, container_id, limit):
     """
     docker-compose logs of a specific container
     """
-    project = get_project_with_name(name)
-    container = get_container_from_id(project.client, container_id)
-    lines = container.logs(timestamps=True, tail=limit).decode("utf8").split('\n')
-    return jsonify(logs=lines)
+    if("username" in session):
+        YML_PATH = "./users/" + session["username"]
+        project = get_project_with_name(YML_PATH, name)
+        container = get_container_from_id(project.client, container_id)
+        lines = container.logs(timestamps=True, tail=limit).decode("utf8").split('\n')
+        return jsonify(logs=lines)
+    else:
+        return "unauthorized", 403
 
 @app.route(API_V1 + "host", methods=['GET'])
 def host():
     """
     docker host info
     """
-    host_value = os.getenv('DOCKER_HOST')
+    if('username' in session):
+        host_value = os.getenv('DOCKER_HOST')
 
-    return jsonify(host=host_value, workdir=os.getcwd() if YML_PATH == '.' else YML_PATH)
+        return jsonify(host=host_value, workdir="/" + session['username'] + "/")
+
+    else:
+        return "unauthorized", 403
+    
 
 @app.route(API_V1 + "compose-registry", methods=['GET'])
 def compose_registry():
@@ -468,7 +589,35 @@ def index():
     """
     index.html
     """
-    return app.send_static_file('index.html')
+    if 'username' in session:
+        return render_template('index.html')
+    else:
+        return render_template('login.html')
+
+# login
+@app.route("/oauth2callback")
+def login():
+    with open('../creds/github.json') as json_data_file:
+        oCreds = loads(json_data_file.read())
+    sCode = request.args.get('code')
+    print("Code was", sCode )
+    dictToSend = {'client_id':oCreds["client_id"], 'client_secret':oCreds["client_secret"], 'code': sCode}
+    dictHeaders = {"Accept":"application/json"}
+    res = requests.post('https://github.com/login/oauth/access_token', json=dictToSend, headers=dictHeaders)
+    print('response from server:',res.text)
+    dictFromServer = res.json()
+    dictHeaders["Authorization"] = "token " + dictFromServer["access_token"]
+    resUser = requests.get("https://api.github.com/user", headers=dictHeaders)
+    print('response from server:',resUser.text)
+    dictFromServer = resUser.json()
+    sUser = dictFromServer["login"]
+    session["username"] = sUser
+
+    if(not os.path.isdir("./users")):
+        os.mkdir("./users")
+    if(not os.path.isdir("./users/" + sUser )):
+        os.mkdir("./users/" + sUser)
+    return redirect(url_for('index'))
 
 ## basic exception handling
 

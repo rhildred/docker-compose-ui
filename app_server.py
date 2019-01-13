@@ -34,7 +34,7 @@ from main import app
 
 host = '0.0.0.0'
 port = 5001
-NUM_WORKERS = 5
+NUM_WORKERS = 2
 worker_pids = []
 
 
