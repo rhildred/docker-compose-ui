@@ -1,6 +1,7 @@
 #!/bin/bash -i
 sudo yum update
-sudo amazon-linux-extras install docker python3 python3-devel libev-devel git gcc gcc-c++ make 
+sudo yum install python3 python3-devel libev-devel git gcc gcc-c++ make 
+sudo amazon-linux-extras install docker 
 sudo service docker start
 sudo usermod -a -G docker ec2-user
 pip3 install --user docker-compose
