@@ -641,8 +641,8 @@ def login():
         os.mkdir("./users")
     if(not os.path.isdir("./users/" + sUser )):
         os.mkdir("./users/" + sUser)
-        with open("./users/" + sUser + "/.info") as oInfo:
-            oInfo.write(res.text) 
+        with open("./users/" + sUser + "/info.json", "w") as oInfo:
+            oInfo.write(resUser.text) 
     return redirect(url_for('index'))
 
 ## basic exception handling
