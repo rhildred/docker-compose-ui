@@ -1,0 +1,13 @@
+[Unit]
+Description=Lab service
+After=network.target
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python3 /home/ec2-user/docker-compose-ui/app_server.py
+Restart=on-failure
+WorkingDirectory=/home/ec2-user/docker-compose-ui/
+User=ec2-user
+
+[Install]
+WantedBy=multi-user.target
