@@ -322,16 +322,26 @@ def create_project():
     create new project
     """
     if("username" in session):
-        YML_PATH = "./users/" + session["username"]
+        sUserName = session["username"]
+        YML_PATH = "./users/" + sUserName
 
         data = loads(request.data)
-
-        file_path = git_clone(data["repoName"], YML_PATH + '/' +  data["name"])
+        sName = data["name"]
+        file_path = git_clone(data["repoName"], YML_PATH + '/' +  sName)
 
         if 'env' in data and data["env"]:
-            env_file = open(YML_PATH + '/' + data["name"] + "/.env", "w")
+            env_file = open(YML_PATH + '/' + sName + "/.env", "w")
             env_file.write(data["env"])
             env_file.close()
+
+        with open('cloudflare.json') as json_data_file:
+            oCreds = loads(json_data_file.read())
+
+        dictToSend = {'type':"CNAME", 'name':sName + "-" + sUserName, 'content': oCreds["Site"], 'proxied': True }
+        dictHeaders = {"X-Auth-Email":oCreds["EmailID"], "X-Auth-Key":oCreds["SecretKey"]}
+        res = requests.post('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records", json=dictToSend, headers=dictHeaders)
+        print('response from server:',res.text)
+
 
         load_projects(YML_PATH)
 
@@ -366,10 +376,22 @@ def remove_project(name):
     remove project
     """
     if('username' in session):
-        YML_PATH = "./users/" + sUserName
         sUserName = session["username"]
+        YML_PATH = "./users/" + sUserName
         directory = YML_PATH + '/' + name
         rmtree(directory)
+
+        with open('cloudflare.json') as json_data_file:
+            oCreds = loads(json_data_file.read())
+        dictHeaders = {"X-Auth-Email":oCreds["EmailID"], "X-Auth-Key":oCreds["SecretKey"]}
+        res = requests.get('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records?name=" + name + "-" + sUserName + "." + oCreds["Site"], headers=dictHeaders)
+        dictFromServer = res.json()
+        sId = dictFromServer["result"][0]["id"]
+        res = requests.delete('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records/" + sId, headers=dictHeaders)
+        print(res.text)
+
+
+
         load_projects("./users/" + sUserName)
         return jsonify(path=directory)
     else:
@@ -619,6 +641,8 @@ def login():
         os.mkdir("./users")
     if(not os.path.isdir("./users/" + sUser )):
         os.mkdir("./users/" + sUser)
+        with open("./users/" + sUser + "/.info") as oInfo:
+            oInfo.write(res.text) 
     return redirect(url_for('index'))
 
 ## basic exception handling
