@@ -72,3 +72,5 @@ nginx.conf
 users
 cloudflare.json
 github.json
+localhost.crt
+localhost.key
