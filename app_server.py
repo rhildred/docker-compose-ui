@@ -1,7 +1,6 @@
 import bjoern
 import os
 import signal
-import fileinput
 import socket
 
 
