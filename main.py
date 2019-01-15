@@ -634,7 +634,7 @@ def login():
     resUser = requests.get("https://api.github.com/user", headers=dictHeaders)
     print('response from server:',resUser.text)
     dictFromServer = resUser.json()
-    sUser = dictFromServer["login"]
+    sUser = dictFromServer["login"].lower()
     session["username"] = sUser
 
     if(not os.path.isdir("./users")):
