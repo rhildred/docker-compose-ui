@@ -51,7 +51,8 @@ angular.module('composeUiApp')
             //TODO: check if name is alphanumeric
             //add our special string to the env
 
-            var sHostName = window.location.hostname.replace("apps", name + "-" + sUserName);
+            name +=  "-" + sUserName
+            var sHostName = window.location.hostname.replace("apps", name);
             var sPort = crc16(sHostName);
             var sEnv = "RHPORT=" + sPort + "\n";
             if(env){
