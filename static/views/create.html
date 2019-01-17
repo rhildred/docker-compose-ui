@@ -47,7 +47,8 @@
                 }
                 </style>
               <div class="col-md-8">
-            <input type="text" ng-model="name" class="form-control" id="projectName" placeholder="Project Name" required></div><div id="username" class=col-md-4" ng-bind="username"></div></div>
+            <input type="text" ng-model="name" class="form-control" id="projectName" placeholder="Project Name" required reg-ex-input reg-ex="^[a-z0-9-_+]+$"></div>
+            <div id="username" class="col-md-4" ng-bind="username"></div></div>
           </div>
           <div ng-hide="isEdit" class="form-group">
             <label for="projectRepo">Repository (https://)</label>

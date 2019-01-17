@@ -51,11 +51,11 @@ angular.module('composeUiApp')
             //TODO: check if name is alphanumeric
             //add our special string to the env
 
-            name +=  "-" + sUserName
+            name += "-" + sUserName
             var sHostName = window.location.hostname.replace("apps", name);
             var sPort = crc16(sHostName);
             var sEnv = "RHPORT=" + sPort + "\n";
-            if(env){
+            if (env) {
                 sEnv += env;
             }
             console.log("host is " + sHostName + " port is " + sPort);
@@ -128,4 +128,23 @@ angular.module('composeUiApp')
         }
 
 
+    }).directive("regExInput", function(){
+        "use strict";
+        return {
+            restrict: "A",
+            require: "?regEx",
+            scope: {},
+            replace: false,
+            link: function(scope, element, attrs, ctrl){
+              element.bind('keypress', function (event) {
+                var regex = new RegExp(attrs.regEx);
+                var key = String.fromCharCode(!event.charCode ? event.which : event.charCode);
+                if (!regex.test(key)) {
+                   event.preventDefault();
+                   return false;
+                }
+              });
+            }
+        };
     });
+    
