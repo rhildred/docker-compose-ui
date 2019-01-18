@@ -280,7 +280,8 @@ def up_():
         service_names = req.get('service_names', None)
         do_build = BuildAction.force if req.get('do_build', False) else BuildAction.none
         
-
+        nUid = os.getuid()
+        os.environ["CURRENT_UID"] = str(nUid)
         container_list = get_project_with_name(YML_PATH, name).up(
             service_names=service_names,
             do_build=do_build)
