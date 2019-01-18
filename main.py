@@ -338,7 +338,7 @@ def create_project():
         with open('cloudflare.json') as json_data_file:
             oCreds = loads(json_data_file.read())
 
-        dictToSend = {'type':"CNAME", 'name':sName + "-" + sUserName, 'content': oCreds["Site"], 'proxied': True }
+        dictToSend = {'type':"CNAME", 'name':sName, 'content': oCreds["Site"], 'proxied': True }
         dictHeaders = {"X-Auth-Email":oCreds["EmailID"], "X-Auth-Key":oCreds["SecretKey"]}
         res = requests.post('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records", json=dictToSend, headers=dictHeaders)
         print('response from server:',res.text)
