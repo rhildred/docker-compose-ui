@@ -59,8 +59,8 @@ function crc16(s) {
         j = (c ^ (crc >> 8)) & 0xFF;
         crc = crcTable[j] ^ (crc << 8);
     }
-
-    return Math.floor(((crc ^ 0) & 0xFFFF) * ((65535 - 1024) / 65535)) + 1024;
+    // allow for some ports to be used internally and not collide
+    return Math.floor(((crc ^ 0) & 0xFFFF) * ((65535 - 1030) / 65535)) + 1030;
 
 }
 
