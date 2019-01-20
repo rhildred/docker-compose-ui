@@ -33,7 +33,11 @@ angular.module('composeUiApp')
                       url: 'api/v1/remove-project/:id'
                   }
               });
-              $scope.projectUrl = window.location.protocol + "//" + window.location.hostname.replace("apps", $scope.projectId );
+              if($scope.projectId.indexOf(".") != -1){
+                  $scope.projectUrl = window.location.protocol + "//" + $scope.projectId;
+              }else{
+                  $scope.projectUrl = window.location.protocol + "//" + window.location.hostname.replace("apps", $scope.projectId );
+              }
               var Host = $resource('api/v1/host');
               var Yml = $resource('api/v1/projects/yml/:id');
               var Readme = $resource('api/v1/projects/readme/:id');
