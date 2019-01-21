@@ -387,9 +387,10 @@ def remove_project(name):
         dictHeaders = {"X-Auth-Email":oCreds["EmailID"], "X-Auth-Key":oCreds["SecretKey"]}
         res = requests.get('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records?name=" + name + "-" + sUserName + "." + oCreds["Site"], headers=dictHeaders)
         dictFromServer = res.json()
-        sId = dictFromServer["result"][0]["id"]
-        res = requests.delete('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records/" + sId, headers=dictHeaders)
-        print(res.text)
+        if(len(dictFromServer["result"]) > 0):
+            sId = dictFromServer["result"][0]["id"]
+            res = requests.delete('https://api.cloudflare.com/client/v4/zones/' + oCreds["ZoneID"] + "/dns_records/" + sId, headers=dictHeaders)
+            print(res.text)
 
 
 
