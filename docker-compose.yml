@@ -8,7 +8,7 @@ services:
         read_only: true
         restart: always
         volumes:
-        - ./docker-exec-web-console/index.html:index.html
+        - ./docker-exec-web-console/index.html:/index.html
         - /var/run/docker.sock:/var/run/docker.sock
     nginx:
         image: nginx:latest
