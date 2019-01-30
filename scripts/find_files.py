@@ -10,10 +10,14 @@ def find_yml_files(path):
     find docker-compose.yml files in path
     """
     matches = {}
-    for root, _, filenames in os.walk(path, followlinks=True):
-        for _ in set().union(fnmatch.filter(filenames, 'docker-compose.yml'), fnmatch.filter(filenames, 'docker-compose.yaml')):
-            key = root.split('/')[-1]
-            matches[key] = os.path.join(os.getcwd(), root)
+
+    for item in os.listdir(path):
+        sFolder = os.path.join(path, item)
+        if os.path.isdir(sFolder):
+            aFiles = os.listdir(sFolder)
+            if 'docker-compose.yml' in aFiles or 'docker-compose.yaml' in aFiles:
+                sKey = sFolder.split('/')[-1]
+                matches[sKey] = sFolder
     return matches
 
 
