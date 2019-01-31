@@ -15,7 +15,7 @@ angular.module('composeUiApp')
       $scope.isActive = function (id, l) {
           var normalizedId = id
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
+        .replace(/[^\-a-z0-9]/g, '');
           return l.indexOf(normalizedId) >= 0;
       };
 
