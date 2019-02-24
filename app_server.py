@@ -7,7 +7,7 @@ import socket
 from main import app
 
 host = '0.0.0.0'
-port = 1025
+port = 1028
 NUM_WORKERS = 2
 worker_pids = []
 
